@@ -1,0 +1,288 @@
+namespace ConsoleApp3
+{
+    public struct Card
+    {
+        public string Suit { get; }
+        public string Rank { get; }
+
+        public Card(string suit, string rank)
+        {
+            Suit = suit;
+            Rank = rank;
+        }
+
+        public override string ToString()
+        {
+            return $"{Rank} of {Suit}";
+        }
+
+        public int Value()
+        {
+            return Rank switch
+            {
+                "Ace" => 11,
+                "King" => 4,
+                "Queen" => 3,
+                "Jack" => 2,
+                _ => int.Parse(Rank),
+            };
+        }
+    }
+    public class Deck
+    {
+        private static readonly string[] Suits = { "Hearts", "Diamonds", "Clubs", "Spades" };
+        private static readonly string[] Ranks = { "6", "7", "8", "9", "10", "Jack", "Queen", "King", "Ace" };
+        private List<Card> cards;
+        private Random random = new Random();
+
+        public Deck()
+        {
+            cards = new List<Card>();
+            foreach (var suit in Suits)
+            {
+                foreach (var rank in Ranks)
+                {
+                    cards.Add(new Card(suit, rank));
+                }
+            }
+            Shuffle();
+        }
+
+        public void Shuffle()
+        {
+            int n = cards.Count;
+            while (n > 1)
+            {
+                n--;
+                int k = random.Next(n + 1);
+                var value = cards[k];
+                cards[k] = cards[n];
+                cards[n] = value;
+            }
+        }
+
+        public Card Deal()
+        {
+            if (cards.Count == 0) throw new InvalidOperationException("No cards left in the deck.");
+            var card = cards[cards.Count - 1];
+            cards.RemoveAt(cards.Count - 1);
+            return card;
+        }
+
+        public List<int> FindAces()
+        {
+            var positions = new List<int>();
+            for (int i = 0; i < cards.Count; i++)
+            {
+                if (cards[i].Rank == "Ace")
+                {
+                    positions.Add(i);
+                }
+            }
+            return positions;
+        }
+
+        public void MoveSpadesToFront()
+        {
+            cards.Sort((a, b) =>
+            {
+                if (a.Suit == "Spades" && b.Suit != "Spades") return -1;
+                if (a.Suit != "Spades" && b.Suit == "Spades") return 1;
+                return 0;
+            });
+        }
+
+        public void Sort()
+        {
+            cards.Sort((a, b) =>
+            {
+                int suitComparison = Array.IndexOf(Suits, a.Suit).CompareTo(Array.IndexOf(Suits, b.Suit));
+                if (suitComparison != 0) return suitComparison;
+                return Array.IndexOf(Ranks, a.Rank).CompareTo(Array.IndexOf(Ranks, b.Rank));
+            });
+        }
+    }
+
+    public class Game21
+    {
+        private Deck deck;
+        private List<Card> playerHand;
+        private List<Card> computerHand;
+        private bool playerTurn;
+        private int playerWins = 0;
+        private int computerWins = 0;
+
+        public Game21()
+        {
+            deck = new Deck();
+            playerHand = new List<Card>();
+            computerHand = new List<Card>();
+        }
+
+        public void StartGame()
+        {
+            ResetGame();
+
+            Console.WriteLine("Who gets the first cards? (1 for Player, 2 for Computer): ");
+            playerTurn = Console.ReadLine() == "1";
+
+            playerHand.Add(deck.Deal());
+            playerHand.Add(deck.Deal());
+            computerHand.Add(deck.Deal());
+            computerHand.Add(deck.Deal());
+
+            while (true)
+            {
+                ShowHands();
+                if (CheckForWinner()) break;
+                if (playerTurn)
+                {
+                    PlayerTurn();
+                }
+                else
+                {
+                    ComputerTurn();
+                }
+            }
+            ShowResult();
+            ShowStats();
+        }
+
+        private void PlayerTurn()
+        {
+            Console.WriteLine("Player's turn: (1 to hit, 2 to stand): ");
+            if (Console.ReadLine() == "1")
+            {
+                playerHand.Add(deck.Deal());
+            }
+            else
+            {
+                playerTurn = false;
+            }
+        }
+
+        private void ComputerTurn()
+        {
+            Console.WriteLine("Computer's turn...");
+            if (CalculateHandValue(computerHand) < 17)
+            {
+                computerHand.Add(deck.Deal());
+            }
+            else
+            {
+                playerTurn = true;
+            }
+        }
+
+        private int CalculateHandValue(List<Card> hand)
+        {
+            int value = 0;
+            foreach (var card in hand)
+            {
+                value += card.Value();
+            }
+            return value;
+        }
+
+        private void ShowHands()
+        {
+            Console.WriteLine("Player's hand:");
+            foreach (var card in playerHand)
+            {
+                Console.WriteLine(card);
+            }
+            Console.WriteLine($"Total value: {CalculateHandValue(playerHand)}");
+
+            Console.WriteLine("Computer's hand:");
+            foreach (var card in computerHand)
+            {
+                Console.WriteLine(card);
+            }
+            Console.WriteLine($"Total value: {CalculateHandValue(computerHand)}");
+        }
+
+        private bool CheckForWinner()
+        {
+            int playerValue = CalculateHandValue(playerHand);
+            int computerValue = CalculateHandValue(computerHand);
+
+            if (playerValue == 21 || computerValue > 21)
+            {
+                playerWins++;
+                return true;
+            }
+
+            if (computerValue == 21 || playerValue > 21)
+            {
+                computerWins++;
+                return true;
+            }
+
+            if (playerHand.Count >= 5 || computerHand.Count >= 5)
+            {
+                playerWins++;
+                return true;
+            }
+
+            return false;
+        }
+
+        private void ShowResult()
+        {
+            int playerValue = CalculateHandValue(playerHand);
+            int computerValue = CalculateHandValue(computerHand);
+
+            Console.WriteLine("Final hands:");
+            ShowHands();
+
+            if (playerValue == 21 || (playerValue < 21 && computerValue > 21))
+            {
+                Console.WriteLine("Player wins!");
+            }
+            else if (computerValue == 21 || (computerValue < 21 && playerValue > 21))
+            {
+                Console.WriteLine("Computer wins!");
+            }
+            else
+            {
+                Console.WriteLine(playerValue > computerValue ? "Player wins!" : "Computer wins!");
+            }
+        }
+
+        private void ShowStats()
+        {
+            Console.WriteLine($"Player wins: {playerWins}, Computer wins: {computerWins}");
+        }
+
+        private void ClearHands()
+        {
+            playerHand.Clear();
+            computerHand.Clear();
+        }
+
+        private void ResetGame()
+        {
+            deck = new Deck();
+            ClearHands();
+        }
+    }
+
+
+
+    class Program
+    {
+        static void Main()
+        {
+            Game21 game = new Game21();
+            bool playAgain = true;
+
+            while (playAgain)
+            {
+                game.StartGame();
+
+                Console.WriteLine("Do you want to play again? (yes/no): ");
+                playAgain = Console.ReadLine().ToLower() == "yes";
+            }
+        }
+    }
+}
